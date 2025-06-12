@@ -5,6 +5,21 @@ import queue
 import time
 from datetime import datetime, timezone
 
+# 极简明亮配色和字体
+BG_COLOR = "#FFF"
+CARD_COLOR = "#FFF"
+PRIMARY_COLOR = "#FFF7CC"  # 浅黄色
+PRIMARY_COLOR_ACTIVE = "#FFE066"  # 深一点的浅黄
+BORDER_COLOR = "#E0E0E0"
+FONT_COLOR = "#111"
+COUNTDOWN_COLOR = "#FF3B30"  # 醒目的红色
+FONT_FAMILY = ("Helvetica Neue", "Helvetica", "Arial", "sans-serif")
+TITLE_FONT = ("Helvetica Neue", 22, "bold")
+LABEL_FONT = ("Helvetica Neue", 13)
+BUTTON_FONT = ("Helvetica Neue", 14, "bold")
+LOG_FONT = ("Helvetica Neue", 14)
+COUNTDOWN_FONT = ("Helvetica Neue", 22, "bold")
+
 # --- 核心依赖，与原脚本保持一致 ---
 try:
     import requests
@@ -26,43 +41,122 @@ class TaobaoApp:
     def __init__(self, root):
         self.root = root
         self.root.title("淘宝抢购助手 v2.0")
-        self.root.geometry("600x500")
+        self.root.geometry("600x700")
+        self.root.minsize(600, 650)
+        self.root.configure(bg=BG_COLOR)
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TLabel', background=BG_COLOR, font=LABEL_FONT, foreground=FONT_COLOR)
+        style.configure('TButton', font=BUTTON_FONT, foreground=FONT_COLOR, background=PRIMARY_COLOR, padding=8, relief="flat")
+        style.map('TButton', background=[('active', PRIMARY_COLOR_ACTIVE), ('!active', PRIMARY_COLOR)])
+        style.configure('Card.TFrame', background=CARD_COLOR, relief="flat", borderwidth=0)
+        style.configure('Card.TLabelframe', background=CARD_COLOR, relief="flat", borderwidth=0)
+        style.configure('Card.TLabelframe.Label', background=CARD_COLOR, font=LABEL_FONT, foreground=FONT_COLOR)
 
         self.log_queue = queue.Queue()
         self.driver = None
         self.wait = None
 
         # --- UI 元素 ---
-        # 1. 准备阶段
-        self.prepare_frame = ttk.LabelFrame(root, text="第一步: 准备浏览器")
-        self.prepare_frame.pack(fill="x", padx=10, pady=5)
-        self.prepare_button = ttk.Button(self.prepare_frame, text="打开浏览器并手动准备", command=self.start_browser_thread)
-        self.prepare_button.pack(pady=10)
+        # 标题区
+        self.title_label = tk.Label(root, text="淘宝抢购助手", font=TITLE_FONT, fg=FONT_COLOR, bg=BG_COLOR)
+        self.title_label.pack(pady=(18, 8))
+        self.subtitle_label = tk.Label(root, text="让抢购更快一步！", font=(FONT_FAMILY, 13), fg=FONT_COLOR, bg=BG_COLOR)
+        self.subtitle_label.pack(pady=(0, 18))
 
-        # 2. 抢购阶段
-        self.purchase_frame = ttk.LabelFrame(root, text="第二步: 设置时间并抢购")
-        self.purchase_frame.pack(fill="x", padx=10, pady=5)
-        
-        ttk.Label(self.purchase_frame, text="抢购时间 (HH:MM:SS.fff):", font=("Helvetica", 12)).pack(pady=(10, 2))
-        self.time_entry = ttk.Entry(self.purchase_frame, width=30, font=("Helvetica", 12))
-        self.time_entry.pack()
+        # 1. 准备阶段（卡片）
+        self.prepare_frame = ttk.Labelframe(root, text="第一步: 准备浏览器", style='Card.TLabelframe')
+        self.prepare_frame.pack(fill="x", padx=28, pady=8, ipadx=8, ipady=6)
+        # 主按钮高亮
+        self.prepare_button = tk.Button(
+            self.prepare_frame, text="打开浏览器并手动准备",
+            command=self.start_browser_thread,
+            font=BUTTON_FONT, fg=FONT_COLOR, bg=PRIMARY_COLOR,
+            activebackground=PRIMARY_COLOR_ACTIVE, activeforeground=FONT_COLOR,
+            bd=0, relief="flat", highlightthickness=0,
+            padx=18, pady=8, cursor="hand2", borderwidth=2,
+            highlightbackground=BORDER_COLOR
+        )
+        self.prepare_button.pack(pady=12, padx=12, fill="x")
+        self.prepare_button.bind("<Enter>", lambda e: self.prepare_button.config(bg=PRIMARY_COLOR_ACTIVE))
+        self.prepare_button.bind("<Leave>", lambda e: self.prepare_button.config(bg=PRIMARY_COLOR))
+        # 2. 抢购阶段（卡片）
+        self.purchase_frame = ttk.Labelframe(root, text="第二步: 设置时间并抢购", style='Card.TLabelframe')
+        self.purchase_frame.pack(fill="x", padx=28, pady=8, ipadx=8, ipady=6)
+        ttk.Label(self.purchase_frame, text="抢购时间 (HH:MM:SS.fff):", font=LABEL_FONT, background=CARD_COLOR).pack(pady=(12, 3))
+        # 明显可编辑的输入框
+        self.time_entry = tk.Entry(
+            self.purchase_frame,
+            width=22,
+            font=LABEL_FONT,
+            bg=BG_COLOR,
+            fg=FONT_COLOR,
+            bd=0,
+            highlightthickness=2,
+            highlightcolor=PRIMARY_COLOR,
+            highlightbackground=BORDER_COLOR,
+            relief="flat",
+            insertbackground=FONT_COLOR
+        )
+        self.time_entry.pack(ipady=6, pady=(0, 8), padx=8)
         self.time_entry.insert(0, datetime.now().strftime("%H:%M:%S.000"))
-        
-        self.start_button = ttk.Button(self.purchase_frame, text="开始倒计时抢购", command=self.start_purchase_thread)
-        self.start_button.pack(pady=10)
-
-        # 3. 日志输出
-        self.log_frame = ttk.LabelFrame(root, text="运行日志")
-        self.log_frame.pack(fill="both", expand=True, padx=10, pady=5)
-        self.log_area = scrolledtext.ScrolledText(self.log_frame, wrap=tk.WORD, font=("Courier New", 14))
-        self.log_area.pack(pady=5, padx=5, expand=True, fill='both')
-        self.log_area.configure(state='disabled')
-
-        # 倒计时显示
+        self.start_button = tk.Button(
+            self.purchase_frame, text="开始倒计时抢购",
+            command=self.start_purchase_thread,
+            font=BUTTON_FONT, fg=FONT_COLOR, bg=PRIMARY_COLOR,
+            activebackground=PRIMARY_COLOR_ACTIVE, activeforeground=FONT_COLOR,
+            bd=0, relief="flat", highlightthickness=0,
+            padx=18, pady=8, cursor="hand2", borderwidth=2,
+            highlightbackground=BORDER_COLOR
+        )
+        self.start_button.pack(pady=8, padx=12, fill="x")
+        self.start_button.bind("<Enter>", lambda e: self.start_button.config(bg=PRIMARY_COLOR_ACTIVE))
+        self.start_button.bind("<Leave>", lambda e: self.start_button.config(bg=PRIMARY_COLOR))
+        # 倒计时卡片
+        countdown_card = tk.Frame(self.purchase_frame, bg=CARD_COLOR, bd=0, highlightthickness=0)
+        countdown_card.pack(pady=(5, 0), fill="x", padx=12)
         self.countdown_var = tk.StringVar()
         self.countdown_var.set("")
-        self.countdown_label = ttk.Label(self.purchase_frame, textvariable=self.countdown_var, font=("Helvetica", 18, "bold"), foreground="red")
-        self.countdown_label.pack(pady=(5, 0))
+        self.countdown_label = tk.Label(countdown_card, textvariable=self.countdown_var, font=COUNTDOWN_FONT, fg=COUNTDOWN_COLOR, bg=CARD_COLOR)
+        self.countdown_label.pack(pady=6)
+
+        # --- Layout: Bottom bar is packed first to stick to the bottom ---
+        bottom_bar = tk.Frame(root, bg=BG_COLOR)
+        bottom_bar.pack(side="bottom", fill="x", pady=(10, 0), padx=20)
+        
+        sep = tk.Frame(bottom_bar, bg=BORDER_COLOR, height=1)
+        sep.pack(fill="x", pady=(0, 10))
+        
+        self.close_button = tk.Button(
+            bottom_bar, text="关闭窗口", command=self.on_closing,
+            font=BUTTON_FONT, fg=FONT_COLOR, bg=PRIMARY_COLOR,
+            activebackground=PRIMARY_COLOR_ACTIVE, activeforeground=FONT_COLOR,
+            bd=0, relief="flat", highlightthickness=0,
+            padx=18, pady=10, cursor="hand2", borderwidth=2,
+            highlightbackground=BORDER_COLOR
+        )
+        self.close_button.pack(pady=5, padx=20, fill="x")
+        self.close_button.bind("<Enter>", lambda e: self.close_button.config(bg=PRIMARY_COLOR_ACTIVE))
+        self.close_button.bind("<Leave>", lambda e: self.close_button.config(bg=PRIMARY_COLOR))
+
+        # --- Layout: Log area is packed last to fill the remaining space ---
+        self.log_card = tk.Frame(root, bg=CARD_COLOR, bd=0, highlightthickness=0)
+        self.log_card.pack(fill="both", expand=True, padx=28, pady=(10, 0))
+        self.log_frame = ttk.Frame(self.log_card, style='Card.TFrame')
+        self.log_frame.pack(fill="both", expand=True)
+        self.log_area = scrolledtext.ScrolledText(
+            self.log_frame,
+            wrap=tk.WORD,
+            font=LOG_FONT,
+            bg=CARD_COLOR,
+            fg=FONT_COLOR,
+            bd=0,
+            highlightthickness=0,
+            relief="flat",
+            insertbackground=FONT_COLOR
+        )
+        self.log_area.pack(pady=8, padx=8, expand=True, fill='both')
+        self.log_area.configure(state='disabled')
 
         # 初始化UI状态
         self.time_entry.config(state=tk.DISABLED)
@@ -104,6 +198,12 @@ class TaobaoApp:
         thread.start()
 
     def browser_setup_logic(self):
+        # 激活输入框并提示
+        def activate_time_entry():
+            self.time_entry.config(state=tk.NORMAL)
+            self.time_entry.focus_set()
+        self.root.after(0, activate_time_entry)
+
         try:
             self.log("正在初始化Chrome浏览器...")
             service = Service(executable_path=CHROME_DRIVER_PATH)
