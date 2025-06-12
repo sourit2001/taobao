@@ -1,0 +1,11 @@
+# Ignore ChromeDriver executable and related files
+chromedriver/
+
+# Ignore Python specific files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environment folders
+venv/
+env/
