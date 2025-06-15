@@ -65,8 +65,8 @@
 3.  **配置ChromeDriver路径**:
     打开 `taobao_qg_gui.py` 文件，找到以下行：
     ```python
-    CHROME_DRIVER_PATH = "/Users/lizhu/Downloads/CCR/taobao/chromedriver/chromedriver" # macOS示例
-    # CHROME_DRIVER_PATH = "D:\\path\\to\\chromedriver\\chromedriver.exe" # Windows示例
+    CHROME_DRIVER_PATH = "/path/to/your/chromedriver" # macOS示例 - !!必须修改为您的实际路径!!
+    # CHROME_DRIVER_PATH = "D:\\path\\to\\your\\chromedriver.exe" # Windows示例 - !!必须修改为您的实际路径!!
     ```
     请根据您实际存放 `chromedriver` 的路径修改此变量。**确保路径正确无误。**
 

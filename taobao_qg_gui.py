@@ -35,7 +35,7 @@ except ImportError as e:
     exit()
 
 # --- 全局配置 ---
-CHROME_DRIVER_PATH = "/Users/lizhu/Downloads/CCR/taobao/chromedriver/chromedriver"
+CHROME_DRIVER_PATH = "/Users/lizhu/Downloads/CCR/taobao/chromedriver/chromedriver" # macOS示例
 
 class TaobaoApp:
     def __init__(self, root):
